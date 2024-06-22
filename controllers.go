@@ -18,6 +18,7 @@ func routeIdHelper(w http.ResponseWriter, r *http.Request) (string, int, error) 
 	if err != nil {
 		log.Printf("Error parsing route id: %s", err)
 		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(GenericResponse{Status: http.StatusInternalServerError, Message: "Internal Service Error"})
 		return "", 0, err
 	}
@@ -33,7 +34,8 @@ func Root(w http.ResponseWriter, r *http.Request) {
 func CheckoutHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(GenericResponse{Status: 400, Message: "Bad Request"})
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(GenericResponse{Status: http.StatusBadRequest, Message: "Bad Request"})
 		return
 	}
 
@@ -47,6 +49,7 @@ func CheckoutHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Printf("Error connecting to database: %s", err)
 		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(GenericResponse{Status: http.StatusInternalServerError, Message: "internal service error"})
 		return
 	}
@@ -67,6 +70,7 @@ func CheckoutHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Printf("Error saving user: %s", err)
 		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(GenericResponse{Status: http.StatusInternalServerError, Message: "Internal Service Error"})
 		return
 	}
@@ -88,7 +92,8 @@ func CheckoutHandler(w http.ResponseWriter, r *http.Request) {
 func CheckoutId(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "GET" {
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(GenericResponse{Status: 400, Message: "Bad Request"})
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(GenericResponse{Status: http.StatusBadRequest, Message: "Bad Request"})
 		return
 	}
 
@@ -106,6 +111,7 @@ func CheckoutId(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Printf("Error connecting to database: %s", err)
 		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(GenericResponse{Status: http.StatusInternalServerError, Message: "internal service error"})
 		return
 	}
@@ -119,6 +125,7 @@ func CheckoutId(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Printf("Error getting checkout with id %s - %s", routeId, err)
 		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
 		json.NewEncoder(w).Encode(GenericResponse{Status: http.StatusNotFound, Message: "checkout not found"})
 		return
 	}
@@ -126,6 +133,7 @@ func CheckoutId(w http.ResponseWriter, r *http.Request) {
 	if TokenData.Id != checkout.UserId {
 		log.Printf("Error: user tried reading checkout they don't own")
 		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusUnauthorized)
 		json.NewEncoder(w).Encode(GenericResponse{Status: http.StatusUnauthorized, Message: "Unauthorized"})
 		return
 	}
@@ -139,7 +147,8 @@ func CheckoutId(w http.ResponseWriter, r *http.Request) {
 func UserId(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "GET" {
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(GenericResponse{Status: 400, Message: "Bad Request"})
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(GenericResponse{Status: http.StatusBadRequest, Message: "Bad Request"})
 		return
 	}
 
@@ -158,6 +167,7 @@ func UserId(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Printf("Error connecting to database: %s", err)
 		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(GenericResponse{Status: http.StatusInternalServerError, Message: "internal service error"})
 		return
 	}
@@ -169,6 +179,7 @@ func UserId(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Printf("Error getting checkouts with id %s - %s", routeId, err)
 		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
 		json.NewEncoder(w).Encode(GenericResponse{Status: http.StatusNotFound, Message: "Checkouts not found"})
 		return
 	}
@@ -181,6 +192,7 @@ func UserId(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			log.Printf("Error getting checkout with id %d - %s", TokenData.Id, err)
 			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusNotFound)
 			json.NewEncoder(w).Encode(GenericResponse{Status: http.StatusNotFound, Message: "Error loading checkout"})
 			return
 		}
@@ -192,6 +204,7 @@ func UserId(w http.ResponseWriter, r *http.Request) {
 	if rowSlice == nil {
 		log.Printf("Error: No checkouts found for user %d", TokenData.Id)
 		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
 		json.NewEncoder(w).Encode(GenericResponse{Status: http.StatusNotFound, Message: "No checkouts found for user"})
 		return
 	}
