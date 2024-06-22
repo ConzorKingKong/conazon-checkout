@@ -17,7 +17,6 @@ func routeIdHelper(w http.ResponseWriter, r *http.Request) (string, int, error) 
 	parsedRouteId, err := strconv.Atoi(routeId)
 	if err != nil {
 		log.Printf("Error parsing route id: %s", err)
-		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(GenericResponse{Status: http.StatusInternalServerError, Message: "Internal Service Error"})
 		return "", 0, err
@@ -32,8 +31,8 @@ func Root(w http.ResponseWriter, r *http.Request) {
 }
 
 func CheckoutHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
 	if r.Method != "POST" {
-		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(GenericResponse{Status: http.StatusBadRequest, Message: "Bad Request"})
 		return
@@ -48,7 +47,6 @@ func CheckoutHandler(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Printf("Error connecting to database: %s", err)
-		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(GenericResponse{Status: http.StatusInternalServerError, Message: "internal service error"})
 		return
@@ -69,7 +67,6 @@ func CheckoutHandler(w http.ResponseWriter, r *http.Request) {
 	err = conn.QueryRow(context.Background(), queryString, checkout.UserId, checkout.TotalPrice, checkout.BillingStatus, checkout.ShippingStatus, checkout.TrackingNumber).Scan(&checkout.Id)
 	if err != nil {
 		log.Printf("Error saving user: %s", err)
-		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(GenericResponse{Status: http.StatusInternalServerError, Message: "Internal Service Error"})
 		return
@@ -85,13 +82,12 @@ func CheckoutHandler(w http.ResponseWriter, r *http.Request) {
 	// kick off shipment/create tracking
 	// email customer w tracking and order info
 
-	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(checkout)
 }
 
 func CheckoutId(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
 	if r.Method != "GET" {
-		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(GenericResponse{Status: http.StatusBadRequest, Message: "Bad Request"})
 		return
@@ -110,7 +106,6 @@ func CheckoutId(w http.ResponseWriter, r *http.Request) {
 	conn, err := pgx.Connect(context.Background(), DatabaseURLEnv)
 	if err != nil {
 		log.Printf("Error connecting to database: %s", err)
-		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(GenericResponse{Status: http.StatusInternalServerError, Message: "internal service error"})
 		return
@@ -124,7 +119,6 @@ func CheckoutId(w http.ResponseWriter, r *http.Request) {
 	err = conn.QueryRow(context.Background(), "select id, user_id, total_price, billing_status, shipping_status, tracking_number from checkout.checkout where id=$1", routeId).Scan(&checkout.Id, &checkout.UserId, &checkout.TotalPrice, &checkout.BillingStatus, &checkout.ShippingStatus, &checkout.TrackingNumber)
 	if err != nil {
 		log.Printf("Error getting checkout with id %s - %s", routeId, err)
-		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusNotFound)
 		json.NewEncoder(w).Encode(GenericResponse{Status: http.StatusNotFound, Message: "checkout not found"})
 		return
@@ -132,7 +126,6 @@ func CheckoutId(w http.ResponseWriter, r *http.Request) {
 
 	if TokenData.Id != checkout.UserId {
 		log.Printf("Error: user tried reading checkout they don't own")
-		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusUnauthorized)
 		json.NewEncoder(w).Encode(GenericResponse{Status: http.StatusUnauthorized, Message: "Unauthorized"})
 		return
@@ -140,13 +133,12 @@ func CheckoutId(w http.ResponseWriter, r *http.Request) {
 
 	fmt.Printf("%d %s %d", TokenData.Id, routeId, parsedRouteId)
 
-	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(checkout)
 }
 
 func UserId(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
 	if r.Method != "GET" {
-		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(GenericResponse{Status: http.StatusBadRequest, Message: "Bad Request"})
 		return
@@ -166,7 +158,6 @@ func UserId(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Printf("Error connecting to database: %s", err)
-		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(GenericResponse{Status: http.StatusInternalServerError, Message: "internal service error"})
 		return
@@ -178,7 +169,6 @@ func UserId(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Printf("Error getting checkouts with id %s - %s", routeId, err)
-		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusNotFound)
 		json.NewEncoder(w).Encode(GenericResponse{Status: http.StatusNotFound, Message: "Checkouts not found"})
 		return
@@ -191,7 +181,6 @@ func UserId(w http.ResponseWriter, r *http.Request) {
 		err = rows.Scan(&checkout.Id, &checkout.UserId, &checkout.TotalPrice, &checkout.BillingStatus, &checkout.ShippingStatus, &checkout.TrackingNumber)
 		if err != nil {
 			log.Printf("Error getting checkout with id %d - %s", TokenData.Id, err)
-			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusNotFound)
 			json.NewEncoder(w).Encode(GenericResponse{Status: http.StatusNotFound, Message: "Error loading checkout"})
 			return
@@ -203,7 +192,6 @@ func UserId(w http.ResponseWriter, r *http.Request) {
 
 	if rowSlice == nil {
 		log.Printf("Error: No checkouts found for user %d", TokenData.Id)
-		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusNotFound)
 		json.NewEncoder(w).Encode(GenericResponse{Status: http.StatusNotFound, Message: "No checkouts found for user"})
 		return
@@ -212,7 +200,7 @@ func UserId(w http.ResponseWriter, r *http.Request) {
 	fmt.Printf("%d", parsedRouteId)
 
 	// return data
-	w.Header().Set("Content-Type", "application/json")
+
 	json.NewEncoder(w).Encode(rowSlice)
 }
 
