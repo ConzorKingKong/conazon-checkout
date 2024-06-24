@@ -47,15 +47,6 @@ type IdTokenPayload struct {
 	Exp            int    `json:"exp"`
 }
 
-type MyJWT struct {
-	Id int `json:"id"`
-}
-
-type GenericResponse struct {
-	Status  int    `json:"status"`
-	Message string `json:"message"`
-}
-
 type Checkout struct {
 	Id             int       `json:"id"`
 	CreatedAt      time.Time `json:"createdAt"`
@@ -65,4 +56,26 @@ type Checkout struct {
 	BillingStatus  string    `json:"billingStatus"`
 	ShippingStatus string    `json:"shippingStatus"`
 	TrackingNumber string    `json:"trackingNumber"`
+}
+
+type MyJWT struct {
+	Id int `json:"id"`
+}
+
+type Response struct {
+	Status  int    `json:"status"`
+	Message string `json:"message"`
+	Data    string `json:"data"`
+}
+
+type CheckoutResponse struct {
+	Status  int      `json:"status"`
+	Message string   `json:"message"`
+	Data    Checkout `json:"data"`
+}
+
+type CheckoutsResponse struct {
+	Status  int        `json:"status"`
+	Message string     `json:"message"`
+	Data    []Checkout `json:"data"`
 }
