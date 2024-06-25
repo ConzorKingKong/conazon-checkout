@@ -20,7 +20,7 @@ Then run:
 
 - /
 
-GET - generic hello world. useless endpoint
+GET - Catch all 404
 
 - /checkout
 
