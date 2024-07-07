@@ -135,7 +135,6 @@ func CheckoutId(w http.ResponseWriter, r *http.Request) {
 	fmt.Printf("%d %s %d", TokenData.Id, routeId, parsedRouteId)
 
 	json.NewEncoder(w).Encode(CheckoutResponse{Status: http.StatusOK, Message: "Success", Data: checkout})
-
 }
 
 func UserId(w http.ResponseWriter, r *http.Request) {
