@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/smtp"
 	"strconv"
 
 	"github.com/jackc/pgx/v5"
@@ -23,6 +24,26 @@ func routeIdHelper(w http.ResponseWriter, r *http.Request) (string, int, error) 
 	}
 
 	return routeId, parsedRouteId, nil
+}
+
+func sendEmail(to string, subject string, body string) {
+	from := "connor@connorpeshek.me"
+
+	msg := "From: " + from + "\n" +
+		"To: " + to + "\n" +
+		"Subject: " + subject + "\n\n" +
+		body
+
+	err := smtp.SendMail("smtp.gmail.com:587",
+		smtp.PlainAuth("", from, EmailPassword, "smtp.gmail.com"),
+		from, []string{to}, []byte(msg))
+
+	if err != nil {
+		log.Printf("smtp error: %s", err)
+		return
+	}
+
+	log.Printf("message sent to %s", to)
 }
 
 func Root(w http.ResponseWriter, r *http.Request) {
@@ -82,6 +103,8 @@ func CheckoutHandler(w http.ResponseWriter, r *http.Request) {
 	// clear cart
 	// kick off shipment/create tracking
 	// email customer w tracking and order info
+	// update to use customer email
+	sendEmail("connor@connorpeshek.me", "TESTING", "THIS IS A TEST")
 
 	json.NewEncoder(w).Encode(CheckoutResponse{Status: http.StatusOK, Message: "Success", Data: checkout})
 }

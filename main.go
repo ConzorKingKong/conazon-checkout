@@ -12,6 +12,7 @@ import (
 var PORT, PORTExists = "", false
 var JwtSecret, jwtSecretExists = "", false
 var DatabaseURLEnv, DatabaseURLExists = "", false
+var EmailPassword, EmailPasswordExists = "", false
 
 var SECRETKEY []byte
 
@@ -21,6 +22,7 @@ func main() {
 
 	PORT, PORTExists = os.LookupEnv("PORT")
 	JwtSecret, jwtSecretExists = os.LookupEnv("JWTSECRET")
+	EmailPassword, EmailPasswordExists = os.LookupEnv("EMAILPASSWORD")
 	DatabaseURLEnv, DatabaseURLExists = os.LookupEnv("DATABASEURL")
 
 	SECRETKEY = []byte(JwtSecret)
