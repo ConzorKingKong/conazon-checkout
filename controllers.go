@@ -96,6 +96,8 @@ func CheckoutHandler(w http.ResponseWriter, r *http.Request) {
 
 	// calculate total price (verify with my own database)
 
+	//cart/user/id
+
 	// rabbitmq kicks off to double check inv, price,
 	// update total price
 	// handle payment
@@ -104,7 +106,7 @@ func CheckoutHandler(w http.ResponseWriter, r *http.Request) {
 	// kick off shipment/create tracking
 	// email customer w tracking and order info
 	// update to use customer email
-	sendEmail("connor@connorpeshek.me", "TESTING", "THIS IS A TEST")
+	sendEmail("connor@connorpeshek.me", "Conazon Purchase: "+strconv.Itoa(checkout.Id), "Thank you for your purchase!")
 
 	json.NewEncoder(w).Encode(CheckoutResponse{Status: http.StatusOK, Message: "Success", Data: checkout})
 }
