@@ -10,9 +10,9 @@ import (
 	"strconv"
 
 	"github.com/conzorkingkong/conazon-checkout/config"
-	"github.com/conzorkingkong/conazon-checkout/helpers"
 	"github.com/conzorkingkong/conazon-checkout/token"
 	"github.com/conzorkingkong/conazon-checkout/types"
+	authhelpers "github.com/conzorkingkong/conazon-users-and-auth/helpers"
 	authtypes "github.com/conzorkingkong/conazon-users-and-auth/types"
 	"github.com/jackc/pgx/v5"
 )
@@ -37,11 +37,6 @@ func sendEmail(to string, subject string, body string) {
 	log.Printf("message sent to %s", to)
 }
 
-func Root(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusNotFound)
-	json.NewEncoder(w).Encode(authtypes.Response{Status: http.StatusNotFound, Message: "invalid path" + r.URL.RequestURI(), Data: ""})
-}
 
 func CheckoutHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
@@ -110,7 +105,7 @@ func CheckoutId(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	routeId, parsedRouteId, err := helpers.RouteIdHelper(w, r)
+	routeId, parsedRouteId, err := authhelpers.RouteIdHelper(w, r)
 	if err != nil {
 		return
 	}
@@ -161,7 +156,7 @@ func UserId(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	routeId, _, err := helpers.RouteIdHelper(w, r)
+	routeId, _, err := authhelpers.RouteIdHelper(w, r)
 	if err != nil {
 		return
 	}

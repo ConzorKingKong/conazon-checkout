@@ -8,6 +8,7 @@ import (
 
 	"github.com/conzorkingkong/conazon-checkout/config"
 	"github.com/conzorkingkong/conazon-checkout/controllers"
+	authcontrollers "github.com/conzorkingkong/conazon-users-and-auth/controllers"
 	"github.com/joho/godotenv"
 )
 
@@ -37,7 +38,7 @@ func main() {
 		PORT = "8083"
 	}
 
-	http.HandleFunc("/", controllers.Root)
+	http.HandleFunc("/", authcontrollers.Root)
 	http.HandleFunc("/checkout/", controllers.CheckoutHandler)
 	http.HandleFunc("/checkout/{id}", controllers.CheckoutId)
 	http.HandleFunc("/checkout/user/{id}", controllers.UserId)
