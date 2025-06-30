@@ -1,4 +1,4 @@
-package main
+package controllers
 
 import (
 	"context"
@@ -9,22 +9,13 @@ import (
 	"net/smtp"
 	"strconv"
 
+	"github.com/conzorkingkong/conazon-checkout/config"
+	"github.com/conzorkingkong/conazon-checkout/helpers"
+	"github.com/conzorkingkong/conazon-checkout/token"
+	"github.com/conzorkingkong/conazon-checkout/types"
+	authtypes "github.com/conzorkingkong/conazon-users-and-auth/types"
 	"github.com/jackc/pgx/v5"
 )
-
-func routeIdHelper(w http.ResponseWriter, r *http.Request) (string, int, error) {
-	routeId := r.PathValue("id")
-
-	parsedRouteId, err := strconv.Atoi(routeId)
-	if err != nil {
-		log.Printf("Error parsing route id: %s", err)
-		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(Response{Status: http.StatusInternalServerError, Message: "Internal Service Error", Data: ""})
-		return "", 0, err
-	}
-
-	return routeId, parsedRouteId, nil
-}
 
 func sendEmail(to string, subject string, body string) {
 	from := "connor@connorpeshek.me"
@@ -35,7 +26,7 @@ func sendEmail(to string, subject string, body string) {
 		body
 
 	err := smtp.SendMail("smtp.gmail.com:587",
-		smtp.PlainAuth("", from, EmailPassword, "smtp.gmail.com"),
+		smtp.PlainAuth("", from, config.EmailPassword, "smtp.gmail.com"),
 		from, []string{to}, []byte(msg))
 
 	if err != nil {
@@ -49,34 +40,34 @@ func sendEmail(to string, subject string, body string) {
 func Root(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusNotFound)
-	json.NewEncoder(w).Encode(Response{Status: http.StatusNotFound, Message: "invalid path" + r.URL.RequestURI(), Data: ""})
+	json.NewEncoder(w).Encode(authtypes.Response{Status: http.StatusNotFound, Message: "invalid path" + r.URL.RequestURI(), Data: ""})
 }
 
 func CheckoutHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	if r.Method != "POST" {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(Response{Status: http.StatusBadRequest, Message: "Bad Request", Data: ""})
+		json.NewEncoder(w).Encode(authtypes.Response{Status: http.StatusBadRequest, Message: "Bad Request", Data: ""})
 		return
 	}
 
-	TokenData, err := validateAndReturnSession(w, r)
+	TokenData, err := token.ValidateAndReturnSession(w, r)
 	if err != nil {
 		return
 	}
 
-	conn, err := pgx.Connect(context.Background(), DatabaseURLEnv)
+	conn, err := pgx.Connect(context.Background(), config.DatabaseURLEnv)
 
 	if err != nil {
 		log.Printf("Error connecting to database: %s", err)
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(Response{Status: http.StatusInternalServerError, Message: "internal service error", Data: ""})
+		json.NewEncoder(w).Encode(authtypes.Response{Status: http.StatusInternalServerError, Message: "internal service error", Data: ""})
 		return
 	}
 
 	defer conn.Close(context.Background())
 
-	checkout := Checkout{
+	checkout := types.Checkout{
 		UserId:         TokenData.Id,
 		TotalPrice:     "0",
 		BillingStatus:  "unpaid",
@@ -90,7 +81,7 @@ func CheckoutHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Printf("Error saving user: %s", err)
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(Response{Status: http.StatusInternalServerError, Message: "Internal Service Error", Data: ""})
+		json.NewEncoder(w).Encode(authtypes.Response{Status: http.StatusInternalServerError, Message: "Internal Service Error", Data: ""})
 		return
 	}
 
@@ -108,84 +99,84 @@ func CheckoutHandler(w http.ResponseWriter, r *http.Request) {
 	// update to use customer email
 	sendEmail("connor@connorpeshek.me", "Conazon Purchase: "+strconv.Itoa(checkout.Id), "Thank you for your purchase!")
 
-	json.NewEncoder(w).Encode(CheckoutResponse{Status: http.StatusOK, Message: "Success", Data: checkout})
+	json.NewEncoder(w).Encode(types.CheckoutResponse{Status: http.StatusOK, Message: "Success", Data: checkout})
 }
 
 func CheckoutId(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	if r.Method != "GET" {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(Response{Status: http.StatusBadRequest, Message: "Bad Request", Data: ""})
+		json.NewEncoder(w).Encode(authtypes.Response{Status: http.StatusBadRequest, Message: "Bad Request", Data: ""})
 		return
 	}
 
-	routeId, parsedRouteId, err := routeIdHelper(w, r)
+	routeId, parsedRouteId, err := helpers.RouteIdHelper(w, r)
 	if err != nil {
 		return
 	}
 
-	TokenData, err := validateAndReturnSession(w, r)
+	TokenData, err := token.ValidateAndReturnSession(w, r)
 	if err != nil {
 		return
 	}
 
-	conn, err := pgx.Connect(context.Background(), DatabaseURLEnv)
+	conn, err := pgx.Connect(context.Background(), config.DatabaseURLEnv)
 	if err != nil {
 		log.Printf("Error connecting to database: %s", err)
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(Response{Status: http.StatusInternalServerError, Message: "internal service error", Data: ""})
+		json.NewEncoder(w).Encode(authtypes.Response{Status: http.StatusInternalServerError, Message: "internal service error", Data: ""})
 		return
 	}
 
 	defer conn.Close(context.Background())
 
-	checkout := Checkout{}
+	checkout := types.Checkout{}
 
 	// verify owner of checkout with db call
 	err = conn.QueryRow(context.Background(), "select id, user_id, total_price, billing_status, shipping_status, tracking_number from checkout.checkout where id=$1", routeId).Scan(&checkout.Id, &checkout.UserId, &checkout.TotalPrice, &checkout.BillingStatus, &checkout.ShippingStatus, &checkout.TrackingNumber)
 	if err != nil {
 		log.Printf("Error getting checkout with id %s - %s", routeId, err)
 		w.WriteHeader(http.StatusNotFound)
-		json.NewEncoder(w).Encode(Response{Status: http.StatusNotFound, Message: "checkout not found", Data: ""})
+		json.NewEncoder(w).Encode(authtypes.Response{Status: http.StatusNotFound, Message: "checkout not found", Data: ""})
 		return
 	}
 
 	if TokenData.Id != checkout.UserId {
 		log.Printf("Error: user tried reading checkout they don't own")
 		w.WriteHeader(http.StatusUnauthorized)
-		json.NewEncoder(w).Encode(Response{Status: http.StatusUnauthorized, Message: "Unauthorized", Data: ""})
+		json.NewEncoder(w).Encode(authtypes.Response{Status: http.StatusUnauthorized, Message: "Unauthorized", Data: ""})
 		return
 	}
 
 	fmt.Printf("%d %s %d", TokenData.Id, routeId, parsedRouteId)
 
-	json.NewEncoder(w).Encode(CheckoutResponse{Status: http.StatusOK, Message: "Success", Data: checkout})
+	json.NewEncoder(w).Encode(types.CheckoutResponse{Status: http.StatusOK, Message: "Success", Data: checkout})
 }
 
 func UserId(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	if r.Method != "GET" {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(Response{Status: http.StatusBadRequest, Message: "Bad Request", Data: ""})
+		json.NewEncoder(w).Encode(authtypes.Response{Status: http.StatusBadRequest, Message: "Bad Request", Data: ""})
 		return
 	}
 
-	routeId, _, err := routeIdHelper(w, r)
+	routeId, _, err := helpers.RouteIdHelper(w, r)
 	if err != nil {
 		return
 	}
 
-	TokenData, err := validateAndReturnSession(w, r)
+	TokenData, err := token.ValidateAndReturnSession(w, r)
 	if err != nil {
 		return
 	}
 
-	conn, err := pgx.Connect(context.Background(), DatabaseURLEnv)
+	conn, err := pgx.Connect(context.Background(), config.DatabaseURLEnv)
 
 	if err != nil {
 		log.Printf("Error connecting to database: %s", err)
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(Response{Status: http.StatusInternalServerError, Message: "internal service error", Data: ""})
+		json.NewEncoder(w).Encode(authtypes.Response{Status: http.StatusInternalServerError, Message: "internal service error", Data: ""})
 		return
 	}
 
@@ -196,19 +187,19 @@ func UserId(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Printf("Error getting checkouts with id %s - %s", routeId, err)
 		w.WriteHeader(http.StatusNotFound)
-		json.NewEncoder(w).Encode(Response{Status: http.StatusNotFound, Message: "Checkouts not found", Data: ""})
+		json.NewEncoder(w).Encode(authtypes.Response{Status: http.StatusNotFound, Message: "Checkouts not found", Data: ""})
 		return
 	}
 
-	var rowSlice []Checkout
+	var rowSlice []types.Checkout
 
 	for rows.Next() {
-		var checkout Checkout
+		var checkout types.Checkout
 		err = rows.Scan(&checkout.Id, &checkout.UserId, &checkout.TotalPrice, &checkout.BillingStatus, &checkout.ShippingStatus, &checkout.TrackingNumber)
 		if err != nil {
 			log.Printf("Error getting checkout with id %d - %s", TokenData.Id, err)
 			w.WriteHeader(http.StatusNotFound)
-			json.NewEncoder(w).Encode(Response{Status: http.StatusNotFound, Message: "Error loading checkout", Data: ""})
+			json.NewEncoder(w).Encode(authtypes.Response{Status: http.StatusNotFound, Message: "Error loading checkout", Data: ""})
 			return
 		}
 		rowSlice = append(rowSlice, checkout)
@@ -219,11 +210,11 @@ func UserId(w http.ResponseWriter, r *http.Request) {
 	if rowSlice == nil {
 		log.Printf("Error: No checkouts found for user %d", TokenData.Id)
 		w.WriteHeader(http.StatusNotFound)
-		json.NewEncoder(w).Encode(Response{Status: http.StatusNotFound, Message: "No checkouts found for user", Data: ""})
+		json.NewEncoder(w).Encode(authtypes.Response{Status: http.StatusNotFound, Message: "No checkouts found for user", Data: ""})
 		return
 	}
 
-	json.NewEncoder(w).Encode(CheckoutsResponse{Status: http.StatusOK, Message: "Success", Data: rowSlice})
+	json.NewEncoder(w).Encode(types.CheckoutsResponse{Status: http.StatusOK, Message: "Success", Data: rowSlice})
 }
 
 // func rabbitMqConnect() {
@@ -260,10 +251,4 @@ func UserId(w http.ResponseWriter, r *http.Request) {
 // 	})
 // failOnError(err, "Failed to publish a message")
 // log.Printf(" [x] Sent %s\n", body)
-// }
-
-// func failOnError(err error, msg string) {
-// 	if err != nil {
-// 		log.Panicf("%s: %s", msg, err)
-// 	}
 // }

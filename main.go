@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/conzorkingkong/conazon-checkout/config"
+	"github.com/conzorkingkong/conazon-checkout/controllers"
 	"github.com/joho/godotenv"
 )
 
@@ -13,8 +15,6 @@ var PORT, PORTExists = "", false
 var JwtSecret, jwtSecretExists = "", false
 var DatabaseURLEnv, DatabaseURLExists = "", false
 var EmailPassword, EmailPasswordExists = "", false
-
-var SECRETKEY []byte
 
 func main() {
 
@@ -25,7 +25,9 @@ func main() {
 	EmailPassword, EmailPasswordExists = os.LookupEnv("EMAILPASSWORD")
 	DatabaseURLEnv, DatabaseURLExists = os.LookupEnv("DATABASEURL")
 
-	SECRETKEY = []byte(JwtSecret)
+	config.SECRETKEY = []byte(JwtSecret)
+	config.DatabaseURLEnv = DatabaseURLEnv
+	config.EmailPassword = EmailPassword
 
 	if !jwtSecretExists || !DatabaseURLExists {
 		log.Fatal("Required environment variable not set")
@@ -35,10 +37,10 @@ func main() {
 		PORT = "8083"
 	}
 
-	http.HandleFunc("/", Root)
-	http.HandleFunc("/checkout/", CheckoutHandler)
-	http.HandleFunc("/checkout/{id}", CheckoutId)
-	http.HandleFunc("/checkout/user/{id}", UserId)
+	http.HandleFunc("/", controllers.Root)
+	http.HandleFunc("/checkout/", controllers.CheckoutHandler)
+	http.HandleFunc("/checkout/{id}", controllers.CheckoutId)
+	http.HandleFunc("/checkout/user/{id}", controllers.UserId)
 
 	fmt.Println("server starting on port", PORT)
 	http.ListenAndServe(":"+PORT, nil)
