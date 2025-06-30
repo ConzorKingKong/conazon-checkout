@@ -6,37 +6,17 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"net/smtp"
-	"strconv"
+	"time"
 
 	"github.com/conzorkingkong/conazon-checkout/config"
 	"github.com/conzorkingkong/conazon-checkout/token"
 	"github.com/conzorkingkong/conazon-checkout/types"
+	emailtypes "github.com/conzorkingkong/conazon-email-service/types"
 	authhelpers "github.com/conzorkingkong/conazon-users-and-auth/helpers"
 	authtypes "github.com/conzorkingkong/conazon-users-and-auth/types"
 	"github.com/jackc/pgx/v5"
+	amqp "github.com/rabbitmq/amqp091-go"
 )
-
-func sendEmail(to string, subject string, body string) {
-	from := "connor@connorpeshek.me"
-
-	msg := "From: " + from + "\n" +
-		"To: " + to + "\n" +
-		"Subject: " + subject + "\n\n" +
-		body
-
-	err := smtp.SendMail("smtp.gmail.com:587",
-		smtp.PlainAuth("", from, config.EmailPassword, "smtp.gmail.com"),
-		from, []string{to}, []byte(msg))
-
-	if err != nil {
-		log.Printf("smtp error: %s", err)
-		return
-	}
-
-	log.Printf("message sent to %s", to)
-}
-
 
 func CheckoutHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
@@ -48,6 +28,15 @@ func CheckoutHandler(w http.ResponseWriter, r *http.Request) {
 
 	TokenData, err := token.ValidateAndReturnSession(w, r)
 	if err != nil {
+		return
+	}
+
+	user := authtypes.User{}
+
+	err = json.NewDecoder(r.Body).Decode(&user)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -80,6 +69,47 @@ func CheckoutHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	email := emailtypes.Email{
+		Checkout: checkout,
+		User:     user,
+	}
+
+	mqConn, err := amqp.Dial(config.RabbitMQURL)
+	failOnError(err, "Failed to connect to RabbitMQ")
+	defer mqConn.Close()
+
+	mqCh, mqErr := mqConn.Channel()
+	failOnError(mqErr, "Failed to open a channel")
+	defer mqCh.Close()
+
+	q, err := mqCh.QueueDeclare(
+		"email", // name
+		false,   // durable
+		false,   // delete when unused
+		false,   // exclusive
+		false,   // no-wait
+		nil,     // arguments
+	)
+	failOnError(err, "Failed to declare a queue")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	body, err := json.Marshal(email)
+	failOnError(err, "Failed to marshal email struct")
+
+	err = mqCh.PublishWithContext(ctx,
+		"",     // exchange
+		q.Name, // routing key
+		false,  // mandatory
+		false,  // immediate
+		amqp.Publishing{
+			ContentType: "text/plain",
+			Body:        []byte(body),
+		})
+	failOnError(err, "Failed to publish a message")
+	log.Printf(" [x] Sent %s\n", body)
+
 	// calculate total price (verify with my own database)
 
 	//cart/user/id
@@ -92,7 +122,6 @@ func CheckoutHandler(w http.ResponseWriter, r *http.Request) {
 	// kick off shipment/create tracking
 	// email customer w tracking and order info
 	// update to use customer email
-	sendEmail("connor@connorpeshek.me", "Conazon Purchase: "+strconv.Itoa(checkout.Id), "Thank you for your purchase!")
 
 	json.NewEncoder(w).Encode(types.CheckoutResponse{Status: http.StatusOK, Message: "Success", Data: checkout})
 }
@@ -212,38 +241,8 @@ func UserId(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(types.CheckoutsResponse{Status: http.StatusOK, Message: "Success", Data: rowSlice})
 }
 
-// func rabbitMqConnect() {
-// conn, err := amqp.Dial("amqp://guest:guest@localhost:5672/")
-// failOnError(err, "Failed to connect to RabbitMQ")
-// defer conn.Close()
-
-// ch, err := conn.Channel()
-// failOnError(err, "Failed to open a channel")
-// defer ch.Close()
-
-// q, err := ch.QueueDeclare(
-// 	"hello", // name
-// 	false,   // durable
-// 	false,   // delete when unused
-// 	false,   // exclusive
-// 	false,   // no-wait
-// 	nil,     // arguments
-// )
-// failOnError(err, "Failed to declare a queue")
-
-// ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-// defer cancel()
-
-// body := "Hello World!"
-// err = ch.PublishWithContext(ctx,
-// 	"",     // exchange
-// 	q.Name, // routing key
-// 	false,  // mandatory
-// 	false,  // immediate
-// 	amqp.Publishing{
-// 		ContentType: "text/plain",
-// 		Body:        []byte(body),
-// 	})
-// failOnError(err, "Failed to publish a message")
-// log.Printf(" [x] Sent %s\n", body)
-// }
+func failOnError(err error, msg string) {
+	if err != nil {
+		log.Panicf("%s: %s", msg, err)
+	}
+}

@@ -16,6 +16,7 @@ var PORT, PORTExists = "", false
 var JwtSecret, jwtSecretExists = "", false
 var DatabaseURLEnv, DatabaseURLExists = "", false
 var EmailPassword, EmailPasswordExists = "", false
+var RabbitMQURL, RabbitMQURLExists = "", false
 
 func main() {
 
@@ -25,18 +26,24 @@ func main() {
 	JwtSecret, jwtSecretExists = os.LookupEnv("JWTSECRET")
 	EmailPassword, EmailPasswordExists = os.LookupEnv("EMAILPASSWORD")
 	DatabaseURLEnv, DatabaseURLExists = os.LookupEnv("DATABASEURL")
-
-	config.SECRETKEY = []byte(JwtSecret)
-	config.DatabaseURLEnv = DatabaseURLEnv
-	config.EmailPassword = EmailPassword
+	RabbitMQURL, RabbitMQURLExists = os.LookupEnv("RABBITMQURL")
 
 	if !jwtSecretExists || !DatabaseURLExists {
 		log.Fatal("Required environment variable not set")
 	}
 
+	if !RabbitMQURLExists {
+		RabbitMQURL = "amqp://guest:guest@rabbitmq"
+	}
+
 	if !PORTExists {
 		PORT = "8083"
 	}
+
+	config.SECRETKEY = []byte(JwtSecret)
+	config.DatabaseURLEnv = DatabaseURLEnv
+	config.EmailPassword = EmailPassword
+	config.RabbitMQURL = RabbitMQURL
 
 	http.HandleFunc("/", authcontrollers.Root)
 
