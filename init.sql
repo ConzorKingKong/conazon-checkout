@@ -5,8 +5,10 @@ CREATE TABLE checkout.checkout (
   updated_at TIMESTAMP DEFAULT NOW() NOT NULL,
   user_id INT NOT NULL,
   total_price MONEY NOT NULL,
-  billing_status VARCHAR(255) NOT NULL,
-  shipping_status VARCHAR(255) NOT NULL,
-  tracking_number VARCHAR(255)
+  cart_item_ids INTEGER[] NOT NULL DEFAULT '{}',
+  cart_snapshot JSONB NOT NULL DEFAULT '[]'::jsonb
 );
-insert into checkout.checkout (user_id, total_price, billing_status, shipping_status, tracking_number) values (1, 120.00, 'paid', 'delivered', '1234567890');
+INSERT INTO checkout.checkout (user_id, total_price, cart_item_ids, cart_snapshot) 
+VALUES 
+    (1, 59.98, ARRAY[1, 2], '[{"cart_id": 1, "product_id": 1, "quantity": 1, "unit_price": 29.99}]'::jsonb),
+    (1, 89.97, ARRAY[4, 5, 6], '[{"cart_id": 2, "product_id": 2, "quantity": 1, "unit_price": 29.99}]'::jsonb);

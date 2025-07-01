@@ -3,6 +3,7 @@ module github.com/conzorkingkong/conazon-checkout
 go 1.23.0
 
 require (
+	github.com/conzorkingkong/conazon-cart v0.0.0-20250630234054-64ddd3c901da
 	github.com/conzorkingkong/conazon-email-service v0.0.0-20250630190836-729f84727653
 	github.com/conzorkingkong/conazon-users-and-auth v0.0.0-20250630163739-9381b5e893d7
 	github.com/golang-jwt/jwt/v5 v5.2.2

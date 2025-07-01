@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/conzorkingkong/conazon-checkout/config"
@@ -40,7 +41,7 @@ func CheckoutHandler(w http.ResponseWriter, r *http.Request) {
 
 		defer conn.Close(context.Background())
 
-		rows, err := conn.Query(context.Background(), "select id, user_id, total_price, billing_status, shipping_status, tracking_number from checkout.checkout where user_id=$1", TokenData.Id)
+		rows, err := conn.Query(context.Background(), "select id, created_at, updated_at, user_id, total_price, cart_item_ids, cart_snapshot from checkout.checkout where user_id=$1", TokenData.Id)
 
 		if err != nil {
 			log.Printf("Error getting checkouts with id %d - %s", TokenData.Id, err)
@@ -53,7 +54,7 @@ func CheckoutHandler(w http.ResponseWriter, r *http.Request) {
 
 		for rows.Next() {
 			var checkout types.Checkout
-			err = rows.Scan(&checkout.Id, &checkout.UserId, &checkout.TotalPrice, &checkout.BillingStatus, &checkout.ShippingStatus, &checkout.TrackingNumber)
+			err = rows.Scan(&checkout.ID, &checkout.CreatedAt, &checkout.UpdatedAt, &checkout.UserID, &checkout.TotalPrice, &checkout.CartItemIDs, &checkout.CartSnapshot)
 			if err != nil {
 				log.Printf("Error getting checkout with id %d - %s", TokenData.Id, err)
 				w.WriteHeader(http.StatusNotFound)
@@ -83,10 +84,13 @@ func CheckoutHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		// receive user info and cart array
-		user := authtypes.User{}
+		// receive user info, cart array, and total price
+		// Later, user won't send anything, we will
+		// read their id and check all active cart items
+		// and price ourselves
+		call := types.CheckoutCall{}
 
-		err = json.NewDecoder(r.Body).Decode(&user)
+		err = json.NewDecoder(r.Body).Decode(&call)
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			http.Error(w, err.Error(), http.StatusBadRequest)
@@ -95,7 +99,7 @@ func CheckoutHandler(w http.ResponseWriter, r *http.Request) {
 
 		// reach out for item total prices
 		// handle payment
-		// update database as purchased
+		// update cart database as purchased
 
 		conn, err := pgx.Connect(context.Background(), config.DatabaseURLEnv)
 
@@ -108,17 +112,29 @@ func CheckoutHandler(w http.ResponseWriter, r *http.Request) {
 
 		defer conn.Close(context.Background())
 
-		checkout := types.Checkout{
-			UserId:         TokenData.Id,
-			TotalPrice:     "0",
-			BillingStatus:  "paid",
-			ShippingStatus: "shipped",
-			TrackingNumber: "",
+		var cartItemIDs []int
+		for _, cart := range call.Carts {
+			cartItemIDs = append(cartItemIDs, cart.ID)
 		}
 
-		queryString := "insert into checkout.checkout (user_id, total_price, billing_status, shipping_status, tracking_number) values ($1, $2, $3, $4, $5) returning id"
+		cartSnapshot, err := json.Marshal(call.Carts)
+		if err != nil {
+			log.Printf("Error marshaling cart snapshot: %s", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(authtypes.Response{Status: http.StatusInternalServerError, Message: "internal service error", Data: ""})
+			return
+		}
 
-		err = conn.QueryRow(context.Background(), queryString, checkout.UserId, checkout.TotalPrice, checkout.BillingStatus, checkout.ShippingStatus, checkout.TrackingNumber).Scan(&checkout.Id)
+		checkout := types.Checkout{
+			UserID:       TokenData.Id,
+			TotalPrice:   strconv.Itoa(call.Total),
+			CartItemIDs:  cartItemIDs,
+			CartSnapshot: cartSnapshot,
+		}
+
+		queryString := "insert into checkout.checkout (user_id, total_price, cart_item_ids, cart_snapshot, created_at, updated_at) values ($1, $2, $3, $4, NOW(), NOW()) returning id"
+
+		err = conn.QueryRow(context.Background(), queryString, checkout.UserID, checkout.TotalPrice, checkout.CartItemIDs, checkout.CartSnapshot).Scan(&checkout.ID)
 		if err != nil {
 			log.Printf("Error saving user: %s", err)
 			w.WriteHeader(http.StatusInternalServerError)
@@ -129,7 +145,7 @@ func CheckoutHandler(w http.ResponseWriter, r *http.Request) {
 		// send confirmation email
 		email := emailtypes.Email{
 			Checkout: checkout,
-			User:     user,
+			User:     call.User,
 		}
 
 		mqConn, err := amqp.Dial(config.RabbitMQURL)
@@ -168,8 +184,6 @@ func CheckoutHandler(w http.ResponseWriter, r *http.Request) {
 		failOnError(err, "Failed to publish a message")
 		log.Printf(" [x] Sent %s\n", body)
 
-		// clear cart
-
 		json.NewEncoder(w).Encode(types.CheckoutResponse{Status: http.StatusOK, Message: "Success", Data: checkout})
 
 	} else {
@@ -207,7 +221,7 @@ func CheckoutId(w http.ResponseWriter, r *http.Request) {
 		checkout := types.Checkout{}
 
 		// verify owner of checkout with db call
-		err = conn.QueryRow(context.Background(), "select id, user_id, total_price, billing_status, shipping_status, tracking_number from checkout.checkout where id=$1", routeId).Scan(&checkout.Id, &checkout.UserId, &checkout.TotalPrice, &checkout.BillingStatus, &checkout.ShippingStatus, &checkout.TrackingNumber)
+		err = conn.QueryRow(context.Background(), "select id, created_at, updated_at, user_id, total_price, cart_item_ids, cart_snapshot from checkout.checkout where id=$1", routeId).Scan(&checkout.ID, &checkout.CreatedAt, &checkout.UpdatedAt, &checkout.UserID, &checkout.TotalPrice, &checkout.CartItemIDs, &checkout.CartSnapshot)
 		if err != nil {
 			log.Printf("Error getting checkout with id %s - %s", routeId, err)
 			w.WriteHeader(http.StatusNotFound)
@@ -215,7 +229,7 @@ func CheckoutId(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		if TokenData.Id != checkout.UserId {
+		if TokenData.Id != checkout.UserID {
 			log.Printf("Error: user tried reading checkout they don't own")
 			w.WriteHeader(http.StatusUnauthorized)
 			json.NewEncoder(w).Encode(authtypes.Response{Status: http.StatusUnauthorized, Message: "Unauthorized", Data: ""})

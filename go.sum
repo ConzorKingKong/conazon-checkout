@@ -2,6 +2,8 @@ cloud.google.com/go/compute v1.20.1 h1:6aKEtlUiwEpJzM001l0yFkpXmUVXaN8W+fbkb2AZN
 cloud.google.com/go/compute v1.20.1/go.mod h1:4tCnrn48xsqlwSAiLf1HXMQk8CONslYbdiEZc9FEIbM=
 cloud.google.com/go/compute/metadata v0.2.3 h1:mg4jlk7mCAj6xXp9UJ4fjI9VUI5rubuGBW5aJ7UnBMY=
 cloud.google.com/go/compute/metadata v0.2.3/go.mod h1:VAV5nSsACxMJvgaAuX6Pk2AawlZn8kiOGuCv6gTkwuA=
+github.com/conzorkingkong/conazon-cart v0.0.0-20250630234054-64ddd3c901da h1:tb+rXzyBkfWi97Z0g2apSVkHUZzm1ItpDKfUY+qRVGw=
+github.com/conzorkingkong/conazon-cart v0.0.0-20250630234054-64ddd3c901da/go.mod h1:zMxfv7murHIv14gorLw8gT+3YJh77E+s8+WAdpxtYa0=
 github.com/conzorkingkong/conazon-email-service v0.0.0-20250630190836-729f84727653 h1:b+BMuDSedDwDr+pqT05XGYtZV5qeI+ziu78VMI2MTQg=
 github.com/conzorkingkong/conazon-email-service v0.0.0-20250630190836-729f84727653/go.mod h1:RaDtu5xi+Ty/R2JDQ3n3TqtgNbpHg+oLutCZMKy30To=
 github.com/conzorkingkong/conazon-users-and-auth v0.0.0-20250630163739-9381b5e893d7 h1:hAVEdTNLuhCEH47NH8khsTOOz2dY64tTBrQ18k/C74g=
