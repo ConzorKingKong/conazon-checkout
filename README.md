@@ -27,6 +27,8 @@ GET - Catch all 404
 
 - /checkout
 
+GET - Get all previous checkouts
+
 POST - Checks user out/kicks off rabbitmq queue
 
 {userId, productArray}
@@ -34,7 +36,3 @@ POST - Checks user out/kicks off rabbitmq queue
 - /checkout/{id}
 
 GET - Returns cart id entry
-
-- /checkout/user/{id}
-
-GET - get all active items in users cart

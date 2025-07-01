@@ -49,7 +49,6 @@ func main() {
 
 	http.HandleFunc("/checkout/", controllers.CheckoutHandler)
 	http.HandleFunc("/checkout/{id}", controllers.CheckoutId)
-	http.HandleFunc("/checkout/user/{id}", controllers.UserId)
 
 	http.HandleFunc("/healthz", authcontrollers.Healthz)
 
